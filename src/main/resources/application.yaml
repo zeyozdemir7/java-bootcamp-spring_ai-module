@@ -11,5 +11,12 @@ spring:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
     open-in-view: false
-
-#TODO: Add OpenRouter config
+  ai:
+    openai:
+      api-key: ${OPENROUTER_API_KEY:}
+      base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api}
+      chat:
+        options:
+          model: ${OPENROUTER_MODEL:openrouter/free}
+openrouter:
+  system-prompt: " You act like a teenager girl who is bored all the time."
