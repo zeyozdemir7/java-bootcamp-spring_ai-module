@@ -1,12 +1,20 @@
 package com.accenture.springai_bootcamp_demo.client;
 
+import com.accenture.springai_bootcamp_demo.config.OpenRouterProperties;
 import com.accenture.springai_bootcamp_demo.entity.ChatMessage;
+import com.accenture.springai_bootcamp_demo.entity.Role;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
@@ -19,7 +27,16 @@ import org.springframework.web.client.HttpClientErrorException;
 @Slf4j
 @Component
 public class OpenRouterClient {
-    //TODO add OpenRouter client and config dependency injection
+
+    private final ChatClient chatClient;
+    private final String apiKey;
+    private final OpenRouterProperties properties;
+
+    public OpenRouterClient(ChatClient.Builder chatClientBuilder, @Value("${spring.ai.openai.api-key:}") String apiKey, OpenRouterProperties properties) {
+        this.chatClient = chatClientBuilder.build();
+        this.apiKey = apiKey;
+        this.properties = properties;
+    }
 
 
     public String complete(List<ChatMessage> history) {
@@ -30,17 +47,29 @@ public class OpenRouterClient {
 
     private String call(List<ChatMessage> history) {
         try {
-            //TODO: add OpenRouter call
-            throw new OpenRouterException("Functionality is not yet implemented!");
-        } catch (OpenRouterException ex) {
-            throw ex;
+            return chatClient.prompt()
+                    .messages(toSpringAiMessages(history))
+                    .call()
+                    .content();
         } catch (RuntimeException ex) {
             log.error("OpenRouter request failed", ex);
             throw new OpenRouterException("Failed to reach OpenRouter: " + ex.getMessage(), ex);
         }
     }
 
-    //TODO: use helper methods for more readable code
+
+    private List<org.springframework.ai.chat.messages.Message> toSpringAiMessages(List<ChatMessage> history) {
+        List<Message> messages = new ArrayList<>();
+        if (StringUtils.hasText(properties.systemPrompt())) {
+            messages.add(new SystemMessage(properties.systemPrompt()));
+        }
+        history.forEach(m -> messages.add(
+                m.getRole() == Role.USER
+                        ? new UserMessage(m.getContent())
+                        : new AssistantMessage(m.getContent())));
+        return messages;
+    }
+
 
     private String extractContent(String content) {
         if (!StringUtils.hasText(content)) {
@@ -50,6 +79,9 @@ public class OpenRouterClient {
     }
 
     private void requireApiKey() {
-        //TODO: validate against OpenRouter config
+
+        if (!StringUtils.hasText(apiKey)){
+            throw new OpenRouterException("OPENROUTER_API_KEY is not set.");
+        }
     }
 }
